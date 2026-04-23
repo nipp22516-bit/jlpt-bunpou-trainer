@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JLPT Bunpou Trainer</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #ffecd2, #fcb69f, #a1ffce);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 15px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 25px;
+      padding: 20px;
+      box-shadow: 0px 10px 30px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+
+    h1 {
+      margin: 5px 0;
+      font-size: 22px;
+      color: #222;
+    }
+
+    .subtitle {
+      margin-top: 0;
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 18px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    select, input {
+      flex: 1;
+      padding: 12px;
+      border-radius: 14px;
+      border: 2px solid #eee;
+      font-size: 14px;
+      outline: none;
+    }
+
+    select:focus, input:focus {
+      border-color: #ff6aa2;
+      box-shadow: 0px 0px 6px rgba(255, 106, 162, 0.4);
+    }
+
+    .question-box {
+      background: #f6f8ff;
+      border-radius: 18px;
+      padding: 15px;
+      border: 2px dashed #c8c8ff;
+      text-align: left;
+      margin-bottom: 12px;
+    }
+
+    .qtitle {
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: #333;
+    }
+
+    .qtext {
+      font-size: 14px;
+      color: #444;
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+
+    button {
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      opacity: 0.92;
+      transform: scale(1.02);
+    }
+
+    .btn-check {
+      background: linear-gradient(90deg, #ff6aa2, #ffb86c);
+      color: white;
+    }
+
+    .btn-next {
+      background: linear-gradient(90deg, #4facfe, #00f2fe);
+      color: white;
+    }
+
+    .result {
+      display: none;
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 18px;
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+
+    .success {
+      background: #e7fff0;
+      border: 2px solid #7dffad;
+      color: #146c2e;
+    }
+
+    .fail {
+      background: #ffecec;
+      border: 2px solid #ff9f9f;
+      color: #7a1414;
+    }
+
+    .loading {
+      background: #fff7e6;
+      border: 2px solid #ffd18a;
+      color: #7a4b00;
+    }
+
+    .footer {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #777;
+    }
+
+    .bold {
+      font-weight: bold;
+      color: #222;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <h1>🇯🇵 JLPT Bunpou Trainer</h1>
+    <p class="subtitle">Latihan grammar N5/N4 langsung di HP 📱</p>
+
+    <div class="row">
+      <select id="levelSelect"></select>
+      <select id="grammarSelect"></select>
+    </div>
+
+    <div class="question-box">
+      <div class="qtitle">Pertanyaan:</div>
+      <div class="qtext" id="questionText"></div>
+    </div>
+
+    <input id="answerInput" type="text" placeholder="Ketik jawabanmu (romaji/jepang)..." />
+
+    <button class="btn-check" onclick="checkAnswer()">✅ Cek Jawaban</button>
+    <button class="btn-next" onclick="newQuestion()">🔄 Soal Baru</button>
+
+    <div class="result" id="resultBox"></div>
+
+    <div class="footer">
+      Contoh input: <span class="bold">neko ga imasu</span>
+    </div>
+  </div>
+
+  <script>
+    // 🔥 PENTING: Kalau di replit, biarkan kosong biar otomatis pakai domain replit
+    const API_URL = "";
+
+    const data = {
+      "N5": [
+        {
+          grammar: "~imasu / ~arimasu",
+          prompt: "Buatlah contoh kalimat menggunakan pola:\n～が います (makhluk hidup) / ～が あります (benda)",
+        },
+        {
+          grammar: "~o kudasai",
+          prompt: "Buatlah contoh kalimat menggunakan pola:\n～をください (meminta barang)",
+        },
+        {
+          grammar: "~masen ka",
+          prompt: "Buatlah contoh kalimat ajakan menggunakan pola:\n～ませんか (mau...?)",
+        }
+      ],
+
+      "N4": [
+        {
+          grammar: "~te imasu",
+          prompt: "Buatlah contoh kalimat menggunakan pola:\n～ています (sedang melakukan / kebiasaan)",
+        },
+        {
+          grammar: "~nakereba narimasen",
+          prompt: "Buatlah contoh kalimat menggunakan pola:\n～なければなりません (harus...)",
+        }
+      ]
+    };
+
+    let current = null;
+
+    const levelSelect = document.getElementById("levelSelect");
+    const grammarSelect = document.getElementById("grammarSelect");
+    const questionText = document.getElementById("questionText");
+    const answerInput = document.getElementById("answerInput");
+    const resultBox = document.getElementById("resultBox");
+
+    function loadLevels() {
+      levelSelect.innerHTML = "";
+      Object.keys(data).forEach(level => {
+        const opt = document.createElement("option");
+        opt.value = level;
+        opt.textContent = level;
+        levelSelect.appendChild(opt);
+      });
+    }
+
+    function loadGrammar() {
+      grammarSelect.innerHTML = "";
+      const level = levelSelect.value;
+
+      data[level].forEach((g, index) => {
+        const opt = document.createElement("option");
+        opt.value = index;
+        opt.textContent = g.grammar;
+        grammarSelect.appendChild(opt);
+      });
+    }
+
+    function newQuestion() {
+      const level = levelSelect.value;
+      const grammarIndex = grammarSelect.value;
+      current = data[level][grammarIndex];
+
+      questionText.textContent = current.prompt;
+      answerInput.value = "";
+
+      resultBox.style.display = "none";
+      resultBox.className = "result";
+      resultBox.textContent = "";
+    }
+
+    async function checkAnswer() {
+      if (!current) return;
+
+      const userAnswer = answerInput.value.trim();
+
+      if (!userAnswer) {
+        alert("Jawaban masih kosong!");
+        return;
+      }
+
+      resultBox.style.display = "block";
+      resultBox.className = "result loading";
+      resultBox.textContent = "⏳ AI sedang mengecek jawaban...";
+
+      try {
+        const res = await fetch(`${API_URL}/check`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            level: levelSelect.value,
+            grammar: current.grammar,
+            prompt: current.prompt,
+            answer: userAnswer
+          })
+        });
+
+        const dataAI = await res.json();
+
+        if (dataAI.correct) {
+          resultBox.className = "result success";
+          resultBox.textContent =
+            `✅ BENAR!\n\n` +
+            `Jawaban kamu:\n${userAnswer}\n\n` +
+            `Versi lebih natural:\n${dataAI.fix}\n\n` +
+            `Penjelasan:\n${dataAI.explanation}\n\n` +
+            `Grammar terdeteksi:\n${dataAI.grammar_used.join(", ")}`;
+        } else {
+          resultBox.className = "result fail";
+          resultBox.textContent =
+            `❌ SALAH / perlu diperbaiki\n\n` +
+            `Jawaban kamu:\n${userAnswer}\n\n` +
+            `Versi benar:\n${dataAI.fix}\n\n` +
+            `Penjelasan:\n${dataAI.explanation}\n\n` +
+            `Grammar terdeteksi:\n${dataAI.grammar_used.join(", ")}`;
+        }
+
+      } catch (err) {
+        resultBox.className = "result fail";
+        resultBox.textContent =
+          `❌ Gagal konek ke AI server.\n\n` +
+          `Pastikan server.js berjalan.\n\n` +
+          `Error: ${err.message}`;
+      }
+    }
+
+    // ENTER untuk submit
+    answerInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        checkAnswer();
+      }
+    });
+
+    levelSelect.addEventListener("change", () => {
+      loadGrammar();
+      newQuestion();
+    });
+
+    grammarSelect.addEventListener("change", () => {
+      newQuestion();
+    });
+
+    // INIT
+    loadLevels();
+    loadGrammar();
+    newQuestion();
+  </script>
+</body>
+</html>
